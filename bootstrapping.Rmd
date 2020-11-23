@@ -164,5 +164,60 @@ sim_df_nonconst %>%
   )
 ```
 
+## Import data
 
+```{r}
+data("nyc_airbnb")
+
+nyc_airbnb = 
+  nyc_airbnb %>% 
+  mutate(stars = review_scores_location / 2) %>% 
+  rename(
+    borough = neighbourhood_group,
+    neighborhood = neighbourhood) %>% 
+  filter(borough != "Staten Island") %>% 
+  select(price, stars, borough, neighborhood, room_type)
+```
+
+```{r}
+nyc_airbnb %>% 
+  ggplot(aes(x = stars, y = price, color = room_type)) + 
+  geom_point() 
+```
+
+```{r}
+airbnb_boot_results = 
+  nyc_airbnb %>% 
+  filter(borough == "Manhattan") %>% 
+  bootstrap(n = 1000) %>% 
+  mutate(
+    models = map(strap, ~ lm(price ~ stars + room_type, data = .x)),
+    results = map(models, broom::tidy)) %>% 
+  select(results) %>% 
+  unnest(results)
+
+airbnb_boot_results %>% 
+  group_by(term) %>% 
+  summarize(
+    mean_est = mean(estimate),
+    sd_est = sd(estimate)
+  )
+```
+
+Compare to lm
+
+```{r}
+nyc_airbnb %>% 
+  filter(borough == "Manhattan") %>% 
+  drop_na(stars) %>% 
+  lm(price ~ stars, data = .) %>% 
+  broom::tidy()
+```
+
+```{r}
+airbnb_boot_results %>% 
+  filter(term == "stars") %>% 
+  ggplot(aes(x = estimate)) +
+  geom_density()
+```
 
